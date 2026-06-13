@@ -86,17 +86,28 @@ struct MainWindow: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "photo.on.rectangle.angled")
-                .font(.system(size: 64))
-                .foregroundStyle(.tertiary)
-            Text("点击「导入文件夹」开始浏览图片")
-                .font(.title3)
+        VStack(spacing: 20) {
+            Image("AppLogo")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 120, height: 120)
+                .clipShape(RoundedRectangle(cornerRadius: 24))
+                .shadow(color: .black.opacity(0.15), radius: 10, y: 4)
+
+            Text("FrameFlow")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+
+            Text("导入文件夹，开始浏览和管理你的照片")
+                .font(.body)
                 .foregroundStyle(.secondary)
+
             Button("导入文件夹") {
                 importFolder()
             }
             .controlSize(.large)
+            .buttonStyle(.borderedProminent)
+            .padding(.top, 4)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
