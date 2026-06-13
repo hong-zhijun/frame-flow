@@ -1,7 +1,15 @@
 import SwiftUI
 
+struct ArchiveItem: Identifiable {
+    let id = UUID()
+    let targetURL: URL
+    let starFilter: Int
+    let imageCount: Int
+}
+
 struct ThumbnailGridView: View {
     @Environment(AppState.self) private var appState
+    @State private var archiveItem: ArchiveItem?
     private let columns = [GridItem(.adaptive(minimum: 140, maximum: 200), spacing: 8)]
 
     var body: some View {
@@ -25,6 +33,61 @@ struct ThumbnailGridView: View {
                 .padding(12)
             }
         }
+        .sheet(item: $archiveItem) { item in
+            ArchiveConfirmView(
+                targetURL: item.targetURL,
+                starFilter: item.starFilter,
+                imageCount: item.imageCount
+            ) { confirmedURL in
+                archiveItem = nil
+                Task { await performArchive(to: confirmedURL) }
+            }
+        }
+    }
+
+    private func performArchive(to targetURL: URL) async {
+        let fm = FileManager.default
+        let images = appState.filteredImages
+
+        do {
+            try fm.createDirectory(at: targetURL, withIntermediateDirectories: true)
+        } catch {
+            appState.toastMessage = "创建文件夹失败：\(error.localizedDescription)"
+            return
+        }
+
+        var movedCount = 0
+        for image in images {
+            let destURL = uniqueURL(for: image.url.lastPathComponent, in: targetURL)
+            do {
+                try fm.moveItem(at: image.url, to: destURL)
+                appState.starRatingStore.setRating(0, for: image.url)
+                movedCount += 1
+            } catch {
+                continue
+            }
+        }
+
+        appState.toastMessage = "已归档 \(movedCount) 张图片到「\(targetURL.lastPathComponent)」"
+        appState.starFilter = 0
+        if let folder = appState.currentFolder {
+            await appState.refreshFolder(folder)
+        }
+    }
+
+    private func uniqueURL(for filename: String, in directory: URL) -> URL {
+        let fm = FileManager.default
+        var url = directory.appendingPathComponent(filename)
+        guard fm.fileExists(atPath: url.path(percentEncoded: false)) else { return url }
+
+        let name = url.deletingPathExtension().lastPathComponent
+        let ext = url.pathExtension
+        var counter = 1
+        repeat {
+            url = directory.appendingPathComponent("\(name)_\(counter).\(ext)")
+            counter += 1
+        } while fm.fileExists(atPath: url.path(percentEncoded: false))
+        return url
     }
 
     private var starFilterBar: some View {
@@ -64,6 +127,22 @@ struct ThumbnailGridView: View {
             }
 
             Spacer()
+
+            if appState.starFilter > 0 {
+                Button {
+                    guard let folder = appState.currentFolder else { return }
+                    archiveItem = ArchiveItem(
+                        targetURL: folder.url.appendingPathComponent("归档-\(appState.starFilter)星"),
+                        starFilter: appState.starFilter,
+                        imageCount: appState.filteredImages.count
+                    )
+                } label: {
+                    Label("归档", systemImage: "archivebox")
+                        .font(.caption)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            }
 
             Text("\(appState.filteredImages.count) / \(appState.images.count) 张")
                 .font(.caption)
