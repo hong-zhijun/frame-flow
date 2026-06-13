@@ -50,6 +50,7 @@ struct FolderTreeView: View {
         appState.images = node.images.sorted {
             $0.filename.localizedStandardCompare($1.filename) == .orderedAscending
         }
+        appState.starFilter = 0
         appState.isViewerActive = false
         appState.selectedImage = nil
         appState.statusMessage = "共 \(appState.images.count) 张图片"

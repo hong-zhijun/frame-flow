@@ -5,16 +5,76 @@ struct ThumbnailGridView: View {
     private let columns = [GridItem(.adaptive(minimum: 140, maximum: 200), spacing: 8)]
 
     var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: 8) {
-                ForEach(Array(appState.images.enumerated()), id: \.element.id) { index, item in
-                    ThumbnailCell(item: item)
-                        .onTapGesture {
-                            appState.selectImage(at: index)
-                        }
+        VStack(spacing: 0) {
+            starFilterBar
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(.bar)
+
+            Divider()
+
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 8) {
+                    ForEach(Array(appState.filteredImages.enumerated()), id: \.element.id) { index, item in
+                        ThumbnailCell(item: item)
+                            .onTapGesture {
+                                appState.selectImage(at: index)
+                            }
+                    }
                 }
+                .padding(12)
             }
-            .padding(12)
         }
+    }
+
+    private var starFilterBar: some View {
+        @Bindable var state = appState
+        return HStack(spacing: 12) {
+            Text("筛选")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            starFilterButton(label: "全部", value: 0)
+
+            ForEach(1...5, id: \.self) { star in
+                starFilterButton(
+                    label: "\(star)星",
+                    value: star,
+                    icon: "star.fill"
+                )
+            }
+
+            Spacer()
+
+            if appState.starFilter > 0 {
+                Text("\(appState.filteredImages.count) / \(appState.images.count) 张")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func starFilterButton(label: String, value: Int, icon: String? = nil) -> some View {
+        Button {
+            appState.starFilter = value
+            appState.statusMessage = value == 0
+                ? "共 \(appState.images.count) 张图片"
+                : "\(value)星: \(appState.filteredImages.count) 张"
+        } label: {
+            HStack(spacing: 3) {
+                if let icon {
+                    Image(systemName: icon)
+                        .font(.system(size: 9))
+                        .foregroundStyle(.yellow)
+                }
+                Text(label)
+                    .font(.caption)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(appState.starFilter == value ? Color.accentColor.opacity(0.2) : Color.clear, in: Capsule())
+            .overlay(Capsule().stroke(appState.starFilter == value ? Color.accentColor : Color.gray.opacity(0.3), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 }

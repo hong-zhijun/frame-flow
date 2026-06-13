@@ -115,8 +115,17 @@ struct ImageViewerView: View {
     private var viewerStatusBar: some View {
         HStack {
             Text(item.filename)
+
+            StarRatingView(
+                rating: appState.starRatingStore.rating(for: item.url),
+                size: 12
+            ) { newRating in
+                appState.starRatingStore.setRating(newRating, for: item.url)
+            }
+            .padding(.leading, 8)
+
             Spacer()
-            Text("第 \(appState.currentIndex + 1) / \(appState.images.count) 张")
+            Text("第 \(appState.currentIndex + 1) / \(appState.filteredImages.count) 张")
             if item.isRAW {
                 Text("RAW")
                     .padding(.horizontal, 6)

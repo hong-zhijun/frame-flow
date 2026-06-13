@@ -25,9 +25,16 @@ final class AppState {
     var isLoading = false
     var statusMessage: String = ""
     var selectedFolderID: UUID?
+    var starFilter: Int = 0
 
     let folderScanner = FolderScanner()
     let imageLoader = ImageLoader()
+    let starRatingStore = StarRatingStore()
+
+    var filteredImages: [ImageItem] {
+        if starFilter == 0 { return images }
+        return images.filter { starRatingStore.rating(for: $0.url) == starFilter }
+    }
 
     func openFolder(_ url: URL, includeSubfolders: Bool = true) async {
         isLoading = true
@@ -38,20 +45,23 @@ final class AppState {
         selectedFolderID = node.id
         images = collectImages(from: node)
         folderHistory.add(url)
+        starFilter = 0
+        starRatingStore.cleanupStaleEntries(in: url)
 
         isLoading = false
         statusMessage = "共 \(images.count) 张图片"
     }
 
     func selectImage(at index: Int) {
-        guard index >= 0, index < images.count else { return }
+        let list = filteredImages
+        guard index >= 0, index < list.count else { return }
         currentIndex = index
-        selectedImage = images[index]
+        selectedImage = list[index]
         isViewerActive = true
     }
 
     func nextImage() {
-        guard currentIndex < images.count - 1 else {
+        guard currentIndex < filteredImages.count - 1 else {
             statusMessage = "已是最后一张"
             return
         }
