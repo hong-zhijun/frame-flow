@@ -29,14 +29,18 @@ struct ThumbnailGridView: View {
 
     private var starFilterBar: some View {
         @Bindable var state = appState
-        return HStack(spacing: 12) {
-            Text("筛选")
+        return HStack(spacing: 8) {
+            Text("星级")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
             starFilterButton(label: "全部", value: 0)
 
-            ForEach(1...5, id: \.self) { star in
+            let available = appState.availableStarRatings
+            if available.contains(0) {
+                starFilterButton(label: "无星", value: -1)
+            }
+            ForEach(available.filter { $0 > 0 }, id: \.self) { star in
                 starFilterButton(
                     label: "\(star)星",
                     value: star,
@@ -44,14 +48,42 @@ struct ThumbnailGridView: View {
                 )
             }
 
-            Spacer()
+            if appState.availableFormats.count > 1 {
+                Divider()
+                    .frame(height: 14)
 
-            if appState.starFilter > 0 {
-                Text("\(appState.filteredImages.count) / \(appState.images.count) 张")
+                Text("格式")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
+                formatFilterButton(label: "全部", category: nil)
+
+                ForEach(appState.availableFormats, id: \.self) { category in
+                    formatFilterButton(label: category.label, category: category)
+                }
             }
+
+            Spacer()
+
+            Text("\(appState.filteredImages.count) / \(appState.images.count) 张")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
+    }
+
+    private func formatFilterButton(label: String, category: ImageItem.FormatCategory?) -> some View {
+        let isActive = appState.formatFilter == category
+        return Button {
+            appState.formatFilter = category
+        } label: {
+            Text(label)
+                .font(.caption)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(isActive ? Color.accentColor.opacity(0.2) : Color.clear, in: Capsule())
+                .overlay(Capsule().stroke(isActive ? Color.accentColor : Color.gray.opacity(0.3), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     private func starFilterButton(label: String, value: Int, icon: String? = nil) -> some View {

@@ -17,8 +17,20 @@ struct ImageItem: Identifiable, Hashable {
         self.formatLabel = Self.label(for: self.fileExtension)
     }
 
-    enum FormatCategory {
+    enum FormatCategory: CaseIterable {
         case raw, jpeg, png, heic, gif, tiff, other
+
+        var label: String {
+            switch self {
+            case .raw: "RAW"
+            case .jpeg: "JPG"
+            case .png: "PNG"
+            case .heic: "HEIC"
+            case .gif: "GIF"
+            case .tiff: "TIFF"
+            case .other: "其他"
+            }
+        }
     }
 
     var formatCategory: FormatCategory {

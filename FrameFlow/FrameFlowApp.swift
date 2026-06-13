@@ -26,14 +26,33 @@ final class AppState {
     var statusMessage: String = ""
     var selectedFolderID: UUID?
     var starFilter: Int = 0
+    var formatFilter: ImageItem.FormatCategory?
 
     let folderScanner = FolderScanner()
     let imageLoader = ImageLoader()
     let starRatingStore = StarRatingStore()
 
+    var availableFormats: [ImageItem.FormatCategory] {
+        let categories = Set(images.map(\.formatCategory))
+        return ImageItem.FormatCategory.allCases.filter { categories.contains($0) }
+    }
+
+    var availableStarRatings: [Int] {
+        let ratings = Set(images.map { starRatingStore.rating(for: $0.url) })
+        return (0...5).filter { ratings.contains($0) }.sorted()
+    }
+
     var filteredImages: [ImageItem] {
-        if starFilter == 0 { return images }
-        return images.filter { starRatingStore.rating(for: $0.url) == starFilter }
+        var result = images
+        if starFilter == -1 {
+            result = result.filter { starRatingStore.rating(for: $0.url) == 0 }
+        } else if starFilter > 0 {
+            result = result.filter { starRatingStore.rating(for: $0.url) == starFilter }
+        }
+        if let formatFilter {
+            result = result.filter { $0.formatCategory == formatFilter }
+        }
+        return result
     }
 
     func openFolder(_ url: URL, includeSubfolders: Bool = true) async {
@@ -46,6 +65,7 @@ final class AppState {
         images = collectImages(from: node)
         folderHistory.add(url)
         starFilter = 0
+        formatFilter = nil
         starRatingStore.cleanupStaleEntries(in: url)
 
         isLoading = false
