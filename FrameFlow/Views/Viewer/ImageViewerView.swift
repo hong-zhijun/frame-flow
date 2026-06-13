@@ -8,6 +8,8 @@ struct ImageViewerView: View {
     @State private var isDecodingRAW = false
     @State private var rawDecoded = false
     @State private var errorMessage: String?
+    @State private var showFrameExport = false
+    @State private var showRAWExportWarning = false
 
     private let rawProcessor = RAWProcessor()
 
@@ -17,6 +19,16 @@ struct ImageViewerView: View {
 
             if let displayImage {
                 ZoomableImageView(image: displayImage)
+                    .contextMenu {
+                        Button("在访达中显示") {
+                            NSWorkspace.shared.activateFileViewerSelecting([item.url])
+                        }
+                        Button("复制图片") {
+                            let pb = NSPasteboard.general
+                            pb.clearContents()
+                            pb.writeObjects([displayImage])
+                        }
+                    }
             }
 
             if isLoading {
@@ -69,11 +81,43 @@ struct ImageViewerView: View {
             }
         }
         .overlay(alignment: .bottomTrailing) {
-            if item.isRAW, !isLoading {
-                rawButton
-                    .padding(.trailing, 16)
-                    .padding(.bottom, 44)
+            HStack(spacing: 8) {
+                if !isLoading, displayImage != nil {
+                    Button {
+                        if rawDecoded {
+                            showRAWExportWarning = true
+                        } else {
+                            showFrameExport = true
+                        }
+                    } label: {
+                        Label("图片边框", systemImage: "square.and.arrow.up")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                }
+
+                if item.isRAW, !isLoading {
+                    rawButton
+                }
             }
+            .padding(.trailing, 16)
+            .padding(.bottom, 44)
+        }
+        .sheet(isPresented: $showFrameExport) {
+            if let img = displayImage {
+                FrameExportView(item: item, sourceImage: img)
+                    .interactiveDismissDisabled()
+            }
+        }
+        .alert("提示", isPresented: $showRAWExportWarning) {
+            Button("继续") { showFrameExport = true }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("RAW 已解码，使用套壳功能可能要加载较长时间，是否继续？")
+        }
+        .onChange(of: showFrameExport) { _, newValue in
+            appState.isSheetPresented = newValue
         }
         .task(id: item.id) {
             await loadImage()
@@ -176,6 +220,7 @@ struct ImageViewerView: View {
             let image = try await rawProcessor.decodeRAW(url: item.url)
             displayImage = image
             rawDecoded = true
+            appState.toastMessage = "RAW 解码成功"
         } catch {
             errorMessage = error.localizedDescription
         }

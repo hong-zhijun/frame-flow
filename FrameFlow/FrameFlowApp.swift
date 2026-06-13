@@ -24,9 +24,11 @@ final class AppState {
     var currentIndex: Int = 0
     var isLoading = false
     var statusMessage: String = ""
-    var selectedFolderID: UUID?
+    var selectedFolderURL: URL?
     var starFilter: Int = 0
     var formatFilter: ImageItem.FormatCategory?
+    var isSheetPresented = false
+    var toastMessage: String?
 
     let folderScanner = FolderScanner()
     let imageLoader = ImageLoader()
@@ -61,7 +63,7 @@ final class AppState {
 
         let node = await folderScanner.scan(url: url, includeSubfolders: includeSubfolders)
         currentFolder = node
-        selectedFolderID = node.id
+        selectedFolderURL = node.url
         images = collectImages(from: node)
         folderHistory.add(url)
         starFilter = 0
@@ -70,6 +72,30 @@ final class AppState {
 
         isLoading = false
         statusMessage = "共 \(images.count) 张图片"
+    }
+
+    func refreshFolder(_ node: FolderNode) async {
+        isLoading = true
+        statusMessage = "正在刷新..."
+        let refreshed = await folderScanner.scan(url: node.url, includeSubfolders: true)
+        if let current = currentFolder {
+            currentFolder = replaceNode(in: current, target: node.id, with: refreshed)
+        }
+        selectedFolderURL = refreshed.url
+        images = collectImages(from: refreshed)
+        starFilter = 0
+        formatFilter = nil
+        isViewerActive = false
+        selectedImage = nil
+        isLoading = false
+        statusMessage = "共 \(images.count) 张图片"
+    }
+
+    private func replaceNode(in tree: FolderNode, target: UUID, with replacement: FolderNode) -> FolderNode {
+        if tree.id == target { return replacement }
+        var node = tree
+        node.children = tree.children.map { replaceNode(in: $0, target: target, with: replacement) }
+        return node
     }
 
     func selectImage(at index: Int) {

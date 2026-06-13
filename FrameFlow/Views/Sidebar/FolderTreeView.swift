@@ -5,7 +5,7 @@ struct FolderTreeView: View {
     @Environment(AppState.self) private var appState
 
     private var isSelected: Bool {
-        appState.selectedFolderID == node.id
+        appState.selectedFolderURL == node.url
     }
 
     var body: some View {
@@ -46,14 +46,6 @@ struct FolderTreeView: View {
     }
 
     private func selectFolder(_ node: FolderNode) {
-        appState.selectedFolderID = node.id
-        appState.images = node.images.sorted {
-            $0.filename.localizedStandardCompare($1.filename) == .orderedAscending
-        }
-        appState.starFilter = 0
-        appState.formatFilter = nil
-        appState.isViewerActive = false
-        appState.selectedImage = nil
-        appState.statusMessage = "共 \(appState.images.count) 张图片"
+        Task { await appState.refreshFolder(node) }
     }
 }

@@ -38,16 +38,11 @@ struct MainWindow: View {
                 LoadingOverlay(message: appState.statusMessage)
             }
         }
+        .toast(message: Binding(get: { appState.toastMessage }, set: { appState.toastMessage = $0 }))
         .focusable()
         .onKeyPress(phases: .down) { press in
-            guard appState.isViewerActive else { return .ignored }
+            guard appState.isViewerActive, !appState.isSheetPresented else { return .ignored }
             switch press.key {
-            case .space where press.modifiers.contains(.shift):
-                appState.previousImage()
-                return .handled
-            case .space:
-                appState.nextImage()
-                return .handled
             case .rightArrow:
                 appState.nextImage()
                 return .handled

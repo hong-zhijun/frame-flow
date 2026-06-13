@@ -18,6 +18,11 @@ targets:
     platform: macOS
     sources:
       - path: FrameFlow
+        excludes:
+          - Resources/Logos
+      - path: FrameFlow/Resources/Logos
+        type: folder
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.moyu.FrameFlow

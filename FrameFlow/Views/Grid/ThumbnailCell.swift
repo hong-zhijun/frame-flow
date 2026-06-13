@@ -48,6 +48,25 @@ struct ThumbnailCell: View {
                 .truncationMode(.middle)
                 .frame(maxWidth: 140)
         }
+        .contextMenu(menuItems: {
+            Button("在访达中显示") {
+                NSWorkspace.shared.activateFileViewerSelecting([item.url])
+            }
+            Button("复制图片") {
+                if let img = thumbnail {
+                    let pb = NSPasteboard.general
+                    pb.clearContents()
+                    pb.writeObjects([img])
+                }
+            }
+        }, preview: {
+            if let thumbnail {
+                Image(nsImage: thumbnail)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 280, height: 280)
+            }
+        })
         .task {
             await loadThumbnail()
         }
