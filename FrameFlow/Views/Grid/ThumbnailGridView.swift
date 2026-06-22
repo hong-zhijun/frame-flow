@@ -21,16 +21,25 @@ struct ThumbnailGridView: View {
 
             Divider()
 
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: 8) {
-                    ForEach(Array(appState.filteredImages.enumerated()), id: \.element.id) { index, item in
-                        ThumbnailCell(item: item)
-                            .onTapGesture {
-                                appState.selectImage(at: index)
-                            }
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 8) {
+                        ForEach(Array(appState.filteredImages.enumerated()), id: \.element.id) { index, item in
+                            ThumbnailCell(item: item)
+                                .onTapGesture {
+                                    appState.selectImage(at: index)
+                                }
+                        }
+                    }
+                    .padding(12)
+                }
+                .onAppear {
+                    guard let id = appState.selectedImage?.id,
+                          appState.filteredImages.contains(where: { $0.id == id }) else { return }
+                    DispatchQueue.main.async {
+                        proxy.scrollTo(id, anchor: .center)
                     }
                 }
-                .padding(12)
             }
         }
         .sheet(item: $archiveItem) { item in
@@ -51,6 +60,7 @@ struct ThumbnailGridView: View {
 
         do {
             try fm.createDirectory(at: targetURL, withIntermediateDirectories: true)
+            ManagedFolder.mark(targetURL)
         } catch {
             appState.toastMessage = "创建文件夹失败：\(error.localizedDescription)"
             return

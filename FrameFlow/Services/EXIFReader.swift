@@ -56,7 +56,7 @@ enum EXIFReader {
 
         var aperture = ""
         if let ap = exif[kCGImagePropertyExifFNumber] as? Double {
-            aperture = String(format: "f/%.1g", ap)
+            aperture = String(format: "f/%.1f", ap)
         }
 
         var shutterSpeed = ""

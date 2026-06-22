@@ -18,13 +18,14 @@ struct ToastModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content.overlay(alignment: .top) {
-            if let message {
-                ToastView(message: message)
+            if let current = message {
+                ToastView(message: current)
                     .padding(.top, 60)
                     .transition(.move(edge: .top).combined(with: .opacity))
-                    .onAppear {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-                            withAnimation { self.message = nil }
+                    .task(id: current) {
+                        try? await Task.sleep(nanoseconds: 2_500_000_000)
+                        if !Task.isCancelled, message == current {
+                            withAnimation { message = nil }
                         }
                     }
                     .animation(.easeInOut(duration: 0.3), value: message)

@@ -29,7 +29,8 @@ final class StarRatingStore {
 
     func cleanupStaleEntries(in folderURL: URL) {
         let fm = FileManager.default
-        let folderPath = folderURL.path(percentEncoded: false)
+        var folderPath = folderURL.path(percentEncoded: false)
+        if !folderPath.hasSuffix("/") { folderPath += "/" }
         var changed = false
         for key in ratings.keys {
             if key.hasPrefix(folderPath) && !fm.fileExists(atPath: key) {

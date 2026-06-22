@@ -54,10 +54,7 @@ struct MainWindow: View {
                 return .handled
             case _ where "12345".contains(press.characters):
                 if let digit = Int(press.characters), let selected = appState.selectedImage {
-                    let current = appState.starRatingStore.rating(for: selected.url)
-                    appState.starRatingStore.setRating(current == digit ? 0 : digit, for: selected.url)
-                    let newRating = appState.starRatingStore.rating(for: selected.url)
-                    appState.statusMessage = newRating > 0 ? "已标记 \(newRating) 星" : "已取消标记"
+                    appState.updateRating(digit, for: selected)
                 }
                 return .handled
             default:

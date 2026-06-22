@@ -73,7 +73,7 @@ struct ImageViewerView: View {
             }
         }
         .overlay(alignment: .trailing) {
-            if appState.currentIndex < appState.images.count - 1 {
+            if appState.currentIndex < appState.filteredImages.count - 1 {
                 navArrow(systemName: "chevron.right") {
                     appState.nextImage()
                 }
@@ -164,7 +164,7 @@ struct ImageViewerView: View {
                 rating: appState.starRatingStore.rating(for: item.url),
                 size: 12
             ) { newRating in
-                appState.starRatingStore.setRating(newRating, for: item.url)
+                appState.updateRating(newRating, for: item)
             }
             .padding(.leading, 8)
 

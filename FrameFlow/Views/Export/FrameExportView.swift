@@ -1,31 +1,29 @@
 import SwiftUI
 import AppKit
 
-private class ColorPanelDelegate: NSObject, @unchecked Sendable {
+@MainActor
+private final class ColorPanelCoordinator: NSObject {
     var onChange: ((NSColor) -> Void)?
 
-    @objc func colorDidChange(_ notification: Notification) {
-        guard let panel = notification.object as? NSColorPanel else { return }
-        onChange?(panel.color)
+    @objc func colorDidChange(_ sender: NSColorPanel) {
+        onChange?(sender.color)
     }
 }
 
 private struct CustomColorButton: View {
     @Binding var selection: Color
-    @State private var delegate = ColorPanelDelegate()
+    let coordinator: ColorPanelCoordinator
 
     var body: some View {
         Button {
             let panel = NSColorPanel.shared
-            panel.color = NSColor(selection)
-            panel.setTarget(nil)
             panel.showsAlpha = false
-            delegate.onChange = { [self] color in
+            panel.color = NSColor(selection)
+            coordinator.onChange = { color in
                 selection = Color(nsColor: color)
             }
-            NotificationCenter.default.removeObserver(delegate, name: NSColorPanel.colorDidChangeNotification, object: nil)
-            NotificationCenter.default.addObserver(delegate, selector: #selector(ColorPanelDelegate.colorDidChange(_:)), name: NSColorPanel.colorDidChangeNotification, object: panel)
-            panel.orderFront(nil)
+            panel.setTarget(coordinator)
+            panel.setAction(#selector(ColorPanelCoordinator.colorDidChange(_:)))
             panel.makeKeyAndOrderFront(nil)
         } label: {
             RoundedRectangle(cornerRadius: 4)
@@ -56,6 +54,7 @@ struct FrameExportView: View {
     @State private var availableBrands: [String] = []
     @State private var selectedBrand: String = ""
     @State private var isCustomBrand = false
+    @State private var colorCoordinator = ColorPanelCoordinator()
 
     init(item: ImageItem, sourceImage: NSImage) {
         self.item = item
@@ -108,6 +107,13 @@ struct FrameExportView: View {
         .onChange(of: logoScale) { Task { await updatePreview() } }
         .onChange(of: primaryColor) { Task { await updatePreview() } }
         .onChange(of: secondaryColor) { Task { await updatePreview() } }
+        .onDisappear {
+            // sheet 关闭后，断开与全局 NSColorPanel 的回调，避免 coordinator 释放后回调悬空
+            colorCoordinator.onChange = nil
+            let panel = NSColorPanel.shared
+            panel.setTarget(nil)
+            panel.setAction(nil)
+        }
     }
 
     private var previewPanel: some View {
@@ -262,7 +268,7 @@ struct FrameExportView: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
             Spacer()
-            CustomColorButton(selection: selection)
+            CustomColorButton(selection: selection, coordinator: colorCoordinator)
         }
     }
 
@@ -310,6 +316,7 @@ struct FrameExportView: View {
             let folderURL = itemURL.deletingLastPathComponent()
             let exportDir = folderURL.appendingPathComponent("图片边框", isDirectory: true)
             try? FileManager.default.createDirectory(at: exportDir, withIntermediateDirectories: true)
+            ManagedFolder.mark(exportDir)
 
             let baseName = itemURL.deletingPathExtension().lastPathComponent
             var exportURL = exportDir.appendingPathComponent("\(baseName)_framed.jpg")

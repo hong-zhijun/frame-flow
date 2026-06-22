@@ -61,6 +61,7 @@ final class AppState {
         isLoading = true
         statusMessage = "正在扫描文件夹..."
 
+        await imageLoader.clearCache()
         let node = await folderScanner.scan(url: url, includeSubfolders: includeSubfolders)
         currentFolder = node
         selectedFolderURL = node.url
@@ -68,6 +69,7 @@ final class AppState {
         folderHistory.add(url)
         starFilter = 0
         formatFilter = nil
+        selectedImage = nil
         starRatingStore.cleanupStaleEntries(in: url)
 
         isLoading = false
@@ -124,7 +126,30 @@ final class AppState {
 
     func exitViewer() {
         isViewerActive = false
-        selectedImage = nil
+        // 保留 selectedImage，供 ThumbnailGridView 恢复滚动位置
+    }
+
+    func updateRating(_ digit: Int, for item: ImageItem) {
+        let current = starRatingStore.rating(for: item.url)
+        let newRating = current == digit ? 0 : digit
+        starRatingStore.setRating(newRating, for: item.url)
+        statusMessage = newRating > 0 ? "已标记 \(newRating) 星" : "已取消标记"
+
+        guard isViewerActive else { return }
+        // 只有按星级筛选时，评分变更才可能让当前图脱离筛选集合
+        guard starFilter != 0 else { return }
+
+        let list = filteredImages
+        if let newIndex = list.firstIndex(where: { $0.id == item.id }) {
+            currentIndex = newIndex
+            selectedImage = list[newIndex]
+        } else if list.isEmpty {
+            exitViewer()
+        } else {
+            let target = min(currentIndex, list.count - 1)
+            currentIndex = target
+            selectedImage = list[target]
+        }
     }
 
     private func collectImages(from node: FolderNode) -> [ImageItem] {
