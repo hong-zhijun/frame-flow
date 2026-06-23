@@ -22,7 +22,6 @@ actor FolderScanner {
 
             if resourceValues.isDirectory == true {
                 enumerator.skipDescendants()
-                if ManagedFolder.isManaged(fileURL) { continue }
                 if includeSubfolders {
                     subdirectories.append(fileURL)
                 }

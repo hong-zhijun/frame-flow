@@ -90,7 +90,7 @@ struct ImageViewerView: View {
                             showFrameExport = true
                         }
                     } label: {
-                        Label("图片边框", systemImage: "square.and.arrow.up")
+                        Label("边框水印", systemImage: "square.and.arrow.up")
                             .font(.caption)
                     }
                     .buttonStyle(.borderedProminent)

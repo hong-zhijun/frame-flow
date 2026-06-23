@@ -2,7 +2,7 @@ import Foundation
 import ImageIO
 import CoreLocation
 
-struct EXIFData {
+struct EXIFData: Equatable {
     var cameraMake: String
     var cameraModel: String
     var lensModel: String

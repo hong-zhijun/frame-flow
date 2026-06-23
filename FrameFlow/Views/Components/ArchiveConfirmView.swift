@@ -2,7 +2,7 @@ import SwiftUI
 
 struct ArchiveConfirmView: View {
     @State var targetURL: URL
-    let starFilter: Int
+    let description: String
     let imageCount: Int
     let onConfirm: (URL) -> Void
     @Environment(\.dismiss) private var dismiss
@@ -13,7 +13,7 @@ struct ArchiveConfirmView: View {
                 .font(.headline)
 
             VStack(alignment: .leading, spacing: 8) {
-                Text("将 \(imageCount) 张 \(starFilter)星图片移动到：")
+                Text("将 \(imageCount) 张\(description)移动到：")
                     .font(.callout)
 
                 HStack {
