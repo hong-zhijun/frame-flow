@@ -8,6 +8,7 @@ struct ThumbnailCell: View {
 
     var body: some View {
         let rating = appState.starRatingStore.rating(for: item.url)
+        let isSelected = appState.selectedImageIDs.contains(item.id)
         VStack(spacing: 4) {
             ZStack(alignment: .bottomTrailing) {
                 if let thumbnail {
@@ -39,8 +40,16 @@ struct ThumbnailCell: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                     .padding(4)
                 }
+
+                selectionBadge(isSelected: isSelected)
+                    .padding(6)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
             .clipShape(RoundedRectangle(cornerRadius: 6))
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(Color.accentColor, lineWidth: isSelected ? 3 : 0)
+            )
 
             Text(item.filename)
                 .font(.caption2)
@@ -70,6 +79,28 @@ struct ThumbnailCell: View {
         .task {
             await loadThumbnail()
         }
+    }
+
+    private func selectionBadge(isSelected: Bool) -> some View {
+        Button {
+            appState.toggleSelection(item.id)
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(isSelected ? Color.accentColor : Color.black.opacity(0.35))
+                    .frame(width: 20, height: 20)
+                Circle()
+                    .strokeBorder(Color.white, lineWidth: 1.5)
+                    .frame(width: 20, height: 20)
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .help(isSelected ? "取消选择" : "选择")
     }
 
     private var formatBadge: some View {

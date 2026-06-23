@@ -11,6 +11,12 @@ DerivedData/
 dist/
 FrameFlow 图标导出*/
 
+# 本地打包脚本（含个人 Developer Team ID，不入库）
+scripts/release.sh
+
+# 落地页 / 营销素材（本地预览用，不入库）
+marketing/
+
 # macOS
 .DS_Store
 *.swp

@@ -29,6 +29,7 @@ final class AppState {
     var formatFilter: ImageItem.FormatCategory?
     var isSheetPresented = false
     var toastMessage: String?
+    var selectedImageIDs: Set<UUID> = []
 
     let folderScanner = FolderScanner()
     let imageLoader = ImageLoader()
@@ -42,6 +43,26 @@ final class AppState {
     var availableStarRatings: [Int] {
         let ratings = Set(images.map { starRatingStore.rating(for: $0.url) })
         return (0...5).filter { ratings.contains($0) }.sorted()
+    }
+
+    var selectedImages: [ImageItem] {
+        images.filter { selectedImageIDs.contains($0.id) }
+    }
+
+    func toggleSelection(_ id: UUID) {
+        if selectedImageIDs.contains(id) {
+            selectedImageIDs.remove(id)
+        } else {
+            selectedImageIDs.insert(id)
+        }
+    }
+
+    func clearSelection() {
+        selectedImageIDs.removeAll()
+    }
+
+    func selectAllVisible() {
+        selectedImageIDs = Set(filteredImages.map(\.id))
     }
 
     var filteredImages: [ImageItem] {
@@ -70,6 +91,7 @@ final class AppState {
         starFilter = 0
         formatFilter = nil
         selectedImage = nil
+        selectedImageIDs.removeAll()
         starRatingStore.cleanupStaleEntries(in: url)
 
         isLoading = false
@@ -89,6 +111,7 @@ final class AppState {
         formatFilter = nil
         isViewerActive = false
         selectedImage = nil
+        selectedImageIDs.removeAll()
         isLoading = false
         statusMessage = "共 \(images.count) 张图片"
     }
