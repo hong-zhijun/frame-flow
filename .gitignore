@@ -31,3 +31,6 @@ marketing/
 .build/
 Packages/
 Package.resolved
+
+# 开发文档
+docs/
