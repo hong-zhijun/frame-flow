@@ -45,6 +45,7 @@ struct ThumbnailCell: View {
                     .padding(6)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
+            .frame(width: 140, height: 140)
             .clipShape(RoundedRectangle(cornerRadius: 6))
             .overlay(
                 RoundedRectangle(cornerRadius: 6)
