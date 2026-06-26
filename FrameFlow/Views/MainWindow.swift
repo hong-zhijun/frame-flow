@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MainWindow: View {
     @Environment(AppState.self) private var appState
+    @Environment(\.openWindow) private var openWindow
     @State private var pendingFolderURL: URL?
     @State private var showSubfolderPrompt = false
 
@@ -78,6 +79,12 @@ struct MainWindow: View {
         } message: {
             if let url = pendingFolderURL {
                 Text("是否同时导入「\(url.lastPathComponent)」中的子文件夹？")
+            }
+        }
+        .onChange(of: appState.pendingViewerURL) { _, newURL in
+            if let url = newURL {
+                appState.pendingViewerURL = nil
+                openWindow(id: "standalone-viewer", value: url)
             }
         }
     }

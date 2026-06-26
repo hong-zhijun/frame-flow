@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 @MainActor
 private final class ColorPanelCoordinator: NSObject {
@@ -565,13 +566,33 @@ struct FrameExportView: View {
 
     private func singleExport() async {
         guard let img = sourceImage else { return }
+
+        let folderURL = firstItem.url.deletingLastPathComponent()
+        let defaultDir = folderURL.appendingPathComponent("图片边框", isDirectory: true)
+        try? FileManager.default.createDirectory(at: defaultDir, withIntermediateDirectories: true)
+
+        let baseName = firstItem.url.deletingPathExtension().lastPathComponent
+        var suggestedName = "\(baseName)_framed.jpg"
+        var counter = 1
+        while FileManager.default.fileExists(atPath: defaultDir.appendingPathComponent(suggestedName).path(percentEncoded: false)) {
+            suggestedName = "\(baseName)_framed_\(counter).jpg"
+            counter += 1
+        }
+
+        let panel = NSSavePanel()
+        panel.directoryURL = defaultDir
+        panel.nameFieldStringValue = suggestedName
+        panel.allowedContentTypes = [.jpeg]
+        panel.title = "保存导出图片"
+
+        guard panel.runModal() == .OK, let saveURL = panel.url else { return }
+
         isExporting = true
         exportMessage = ""
 
         let style = currentStyle()
         let logo = loadLogo(for: exifData.cameraMake)
         let exif = exifData
-        let itemURL = firstItem.url
         let text = rightMainText
         let mode = editMode
         let watermarkCfg = watermark
@@ -584,25 +605,12 @@ struct FrameExportView: View {
                 return (false, "渲染失败")
             }
 
-            let folderURL = itemURL.deletingLastPathComponent()
-            let exportDir = folderURL.appendingPathComponent("图片边框", isDirectory: true)
-            try? FileManager.default.createDirectory(at: exportDir, withIntermediateDirectories: true)
-
-            let baseName = itemURL.deletingPathExtension().lastPathComponent
-            var exportURL = exportDir.appendingPathComponent("\(baseName)_framed.jpg")
-
-            var counter = 1
-            while FileManager.default.fileExists(atPath: exportURL.path(percentEncoded: false)) {
-                exportURL = exportDir.appendingPathComponent("\(baseName)_framed_\(counter).jpg")
-                counter += 1
-            }
-
-            let success = FrameRenderer.exportAsJPEG(rendered, to: exportURL)
+            let success = FrameRenderer.exportAsJPEG(rendered, to: saveURL)
             return (success, success ? "" : "导出失败")
         }.value
 
         if result.0 {
-            appState.toastMessage = "导出成功，请到「图片边框」文件夹查看"
+            appState.toastMessage = "导出成功"
             dismiss()
         } else {
             exportMessage = result.1
@@ -611,6 +619,21 @@ struct FrameExportView: View {
     }
 
     private func batchExport() async {
+        let firstURL = items[0].url
+        let folderURL = firstURL.deletingLastPathComponent()
+        let defaultDir = folderURL.appendingPathComponent("图片边框", isDirectory: true)
+        try? FileManager.default.createDirectory(at: defaultDir, withIntermediateDirectories: true)
+
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = defaultDir
+        panel.title = "选择批量导出位置"
+        panel.prompt = "选择"
+
+        guard panel.runModal() == .OK, let exportDir = panel.url else { return }
+
         isExporting = true
         exportMessage = ""
 
@@ -634,6 +657,7 @@ struct FrameExportView: View {
             }
             guard let img else { continue }
 
+            let chosenDir = exportDir
             let ok = await Task.detached {
                 guard let rendered = Self.runPipeline(
                     image: img, exif: exif, style: style, logo: logo,
@@ -642,15 +666,11 @@ struct FrameExportView: View {
                     return false
                 }
 
-                let folderURL = itemURL.deletingLastPathComponent()
-                let exportDir = folderURL.appendingPathComponent("图片边框", isDirectory: true)
-                try? FileManager.default.createDirectory(at: exportDir, withIntermediateDirectories: true)
-
                 let baseName = itemURL.deletingPathExtension().lastPathComponent
-                var exportURL = exportDir.appendingPathComponent("\(baseName)_framed.jpg")
+                var exportURL = chosenDir.appendingPathComponent("\(baseName)_framed.jpg")
                 var counter = 1
                 while FileManager.default.fileExists(atPath: exportURL.path(percentEncoded: false)) {
-                    exportURL = exportDir.appendingPathComponent("\(baseName)_framed_\(counter).jpg")
+                    exportURL = chosenDir.appendingPathComponent("\(baseName)_framed_\(counter).jpg")
                     counter += 1
                 }
                 return FrameRenderer.exportAsJPEG(rendered, to: exportURL)

@@ -9,11 +9,26 @@ struct FrameFlowApp: App {
             MainWindow()
                 .environment(appState)
                 .onOpenURL { url in
-                    Task { await appState.handleOpenURL(url) }
+                    var isDir: ObjCBool = false
+                    FileManager.default.fileExists(atPath: url.path(percentEncoded: false), isDirectory: &isDir)
+                    if isDir.boolValue {
+                        Task { await appState.handleOpenURL(url) }
+                    } else if SupportedFormats.isSupported(url) {
+                        appState.pendingViewerURL = url
+                    }
                 }
         }
         .windowStyle(.titleBar)
         .defaultSize(width: 1200, height: 800)
+
+        WindowGroup("看图", id: "standalone-viewer", for: URL.self) { $url in
+            if let url {
+                StandaloneViewerView(initialURL: url)
+                    .environment(appState)
+            }
+        }
+        .windowStyle(.titleBar)
+        .defaultSize(width: 1000, height: 700)
     }
 }
 
@@ -33,6 +48,7 @@ final class AppState {
     var isSheetPresented = false
     var toastMessage: String?
     var selectedImageIDs: Set<UUID> = []
+    var pendingViewerURL: URL?
 
     let folderScanner = FolderScanner()
     let imageLoader = ImageLoader()
