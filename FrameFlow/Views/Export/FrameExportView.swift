@@ -60,6 +60,8 @@ struct FrameExportView: View {
     @State private var editMode: EditMode = .frame
     @State private var watermark = WatermarkConfig()
     @State private var watermarkColor: Color = .white
+    @State private var showSaveTemplate = false
+    @State private var templateName = ""
     private let rawProcessor = RAWProcessor()
 
     enum EditMode: String, CaseIterable, Identifiable {
@@ -111,11 +113,7 @@ struct FrameExportView: View {
         }
         .onAppear {
             availableBrands = Self.loadAvailableBrands()
-            let matched = availableBrands.first { brand in
-                let makeLower = exifData.cameraMake.lowercased()
-                let brandLower = brand.lowercased()
-                return makeLower == brandLower || makeLower.contains(brandLower)
-            }
+            let matched = Self.matchBrand(make: exifData.cameraMake, in: availableBrands)
             if let matched {
                 selectedBrand = matched
             } else {
@@ -184,6 +182,10 @@ struct FrameExportView: View {
                 .font(.headline)
                 .padding(.horizontal, 16)
                 .padding(.top, 16)
+                .padding(.bottom, 8)
+
+            templateBar
+                .padding(.horizontal, 16)
                 .padding(.bottom, 8)
 
             Picker("", selection: $editMode) {
@@ -463,6 +465,23 @@ struct FrameExportView: View {
             .sorted()
     }
 
+    /// 从候选品牌列表中找到最匹配的品牌名。
+    /// 优先匹配更长（更具体）的名称，并支持空格归一化（如 "Phase One" ↔ "phaseone"）。
+    private static func matchBrand(make: String, in candidates: [String]) -> String? {
+        let makeLower = make.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !makeLower.isEmpty else { return nil }
+        let makeCompact = makeLower.replacingOccurrences(of: " ", with: "")
+        let firstWord = String(makeLower.split(separator: " ").first ?? Substring(makeLower))
+
+        return candidates.sorted { $0.count > $1.count }.first { candidate in
+            let c = candidate.lowercased()
+            let cCompact = c.replacingOccurrences(of: " ", with: "")
+            return makeLower == c || makeCompact == cCompact
+                || firstWord == c || firstWord == cCompact
+                || makeLower.contains(c) || makeCompact.contains(cCompact)
+        }
+    }
+
     private func colorRow(label: String, selection: Binding<Color>) -> some View {
         HStack {
             Text(label)
@@ -665,14 +684,153 @@ struct FrameExportView: View {
         }
 
         let makeLower = normalized.lowercased()
-        let firstWord = makeLower.split(separator: " ").first.map(String.init) ?? makeLower
+        let makeCompact = makeLower.replacingOccurrences(of: " ", with: "")
+        let firstWord = String(makeLower.split(separator: " ").first ?? Substring(makeLower))
 
-        for file in files where file.pathExtension.lowercased() == "png" {
+        // Sort by logo name length descending so more specific names (e.g. "sony ericsson") win over shorter ones (e.g. "sony")
+        let pngFiles = files
+            .filter { $0.pathExtension.lowercased() == "png" }
+            .sorted { $0.lastPathComponent.count > $1.lastPathComponent.count }
+
+        for file in pngFiles {
             let logoName = file.deletingPathExtension().lastPathComponent.lowercased()
-            if makeLower == logoName || firstWord == logoName || makeLower.contains(logoName) {
+            let logoCompact = logoName.replacingOccurrences(of: " ", with: "")
+            if makeLower == logoName || makeCompact == logoCompact
+                || firstWord == logoName || firstWord == logoCompact
+                || makeLower.contains(logoName) || makeCompact.contains(logoCompact) {
                 return NSImage(contentsOf: file)
             }
         }
         return nil
+    }
+
+    // MARK: - 模板
+
+    private var templateBar: some View {
+        HStack(spacing: 6) {
+            Menu {
+                let templates = appState.exportTemplateStore.templates
+                if templates.isEmpty {
+                    Text("暂无模板")
+                } else {
+                    ForEach(templates) { tpl in
+                        Button {
+                            applyTemplate(tpl)
+                        } label: {
+                            Text(tpl.name)
+                        }
+                    }
+                    Divider()
+                    Menu("删除模板") {
+                        ForEach(templates) { tpl in
+                            Button(role: .destructive) {
+                                appState.exportTemplateStore.delete(id: tpl.id)
+                            } label: {
+                                Text(tpl.name)
+                            }
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "doc.on.doc")
+                    Text("模板")
+                }
+                .font(.callout)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+
+            Button {
+                templateName = ""
+                showSaveTemplate = true
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "square.and.arrow.down")
+                    Text("保存当前")
+                }
+                .font(.callout)
+            }
+            .buttonStyle(.borderless)
+
+            Spacer()
+        }
+        .alert("保存为模板", isPresented: $showSaveTemplate) {
+            TextField("模板名称", text: $templateName)
+            Button("保存") {
+                guard !templateName.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+                let template = buildTemplate(name: templateName.trimmingCharacters(in: .whitespaces))
+                appState.exportTemplateStore.save(template)
+                appState.toastMessage = "模板「\(template.name)」已保存"
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("为当前参数设置取一个名字")
+        }
+    }
+
+    private func buildTemplate(name: String) -> ExportTemplate {
+        ExportTemplate(
+            id: UUID(),
+            name: name,
+            createdAt: Date(),
+            editMode: editMode.rawValue,
+            showBorder: showBorder,
+            primaryColorHex: NSColor(primaryColor).hexString,
+            secondaryColorHex: NSColor(secondaryColor).hexString,
+            logoScale: logoScale,
+            brandName: selectedBrand,
+            watermarkKind: watermark.kind.rawValue,
+            watermarkText: watermark.text,
+            watermarkFontSize: watermark.fontSize,
+            watermarkTextColorHex: watermark.textColor.hexString,
+            watermarkImagePath: watermark.imageURL?.path(percentEncoded: false),
+            watermarkImageScale: watermark.imageScale,
+            watermarkPosition: watermark.position.rawValue,
+            watermarkMargin: watermark.margin,
+            watermarkOpacity: watermark.opacity,
+            watermarkTileSpacing: watermark.tileSpacing,
+            watermarkTileRotationDegrees: watermark.tileRotationDegrees
+        )
+    }
+
+    private func applyTemplate(_ tpl: ExportTemplate) {
+        if let mode = EditMode(rawValue: tpl.editMode) {
+            editMode = mode
+        }
+        showBorder = tpl.showBorder
+        primaryColor = Color(nsColor: NSColor(hex: tpl.primaryColorHex))
+        secondaryColor = Color(nsColor: NSColor(hex: tpl.secondaryColorHex))
+        logoScale = tpl.logoScale
+
+        if tpl.brandName == "自定义" {
+            selectedBrand = "自定义"
+            isCustomBrand = true
+        } else {
+            selectedBrand = tpl.brandName
+            isCustomBrand = false
+        }
+
+        if let kind = WatermarkConfig.Kind(rawValue: tpl.watermarkKind) {
+            watermark.kind = kind
+        }
+        watermark.text = tpl.watermarkText
+        watermark.fontSize = tpl.watermarkFontSize
+        watermark.textColor = NSColor(hex: tpl.watermarkTextColorHex)
+        watermarkColor = Color(nsColor: watermark.textColor)
+        if let path = tpl.watermarkImagePath {
+            let url = URL(fileURLWithPath: path)
+            watermark.imageURL = FileManager.default.fileExists(atPath: path) ? url : nil
+        } else {
+            watermark.imageURL = nil
+        }
+        watermark.imageScale = tpl.watermarkImageScale
+        if let pos = WatermarkConfig.Position(rawValue: tpl.watermarkPosition) {
+            watermark.position = pos
+        }
+        watermark.margin = tpl.watermarkMargin
+        watermark.opacity = tpl.watermarkOpacity
+        watermark.tileSpacing = tpl.watermarkTileSpacing
+        watermark.tileRotationDegrees = tpl.watermarkTileRotationDegrees
     }
 }

@@ -8,6 +8,9 @@ struct FrameFlowApp: App {
         WindowGroup {
             MainWindow()
                 .environment(appState)
+                .onOpenURL { url in
+                    Task { await appState.handleOpenURL(url) }
+                }
         }
         .windowStyle(.titleBar)
         .defaultSize(width: 1200, height: 800)
@@ -34,6 +37,7 @@ final class AppState {
     let folderScanner = FolderScanner()
     let imageLoader = ImageLoader()
     let starRatingStore = StarRatingStore()
+    let exportTemplateStore = ExportTemplateStore()
 
     var availableFormats: [ImageItem.FormatCategory] {
         let categories = Set(images.map(\.formatCategory))
@@ -172,6 +176,21 @@ final class AppState {
             let target = min(currentIndex, list.count - 1)
             currentIndex = target
             selectedImage = list[target]
+        }
+    }
+
+    func handleOpenURL(_ url: URL) async {
+        var isDir: ObjCBool = false
+        FileManager.default.fileExists(atPath: url.path(percentEncoded: false), isDirectory: &isDir)
+
+        if isDir.boolValue {
+            await openFolder(url)
+        } else if SupportedFormats.isSupported(url) {
+            let folderURL = url.deletingLastPathComponent()
+            await openFolder(folderURL, includeSubfolders: false)
+            if let index = filteredImages.firstIndex(where: { $0.url == url }) {
+                selectImage(at: index)
+            }
         }
     }
 
