@@ -204,17 +204,23 @@ struct MainWindowVisibilityController: NSViewRepresentable {
     let isVisible: Bool
 
     final class HiddenView: NSView {
+        var targetAlpha: CGFloat = 0
+
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
-            window?.alphaValue = 0
+            window?.alphaValue = targetAlpha
         }
     }
 
-    func makeNSView(context: Context) -> NSView {
-        HiddenView()
+    func makeNSView(context: Context) -> HiddenView {
+        let view = HiddenView()
+        view.targetAlpha = isVisible ? 1 : 0
+        return view
     }
 
-    func updateNSView(_ nsView: NSView, context: Context) {
-        nsView.window?.alphaValue = isVisible ? 1 : 0
+    func updateNSView(_ nsView: HiddenView, context: Context) {
+        let alpha: CGFloat = isVisible ? 1 : 0
+        nsView.targetAlpha = alpha
+        nsView.window?.alphaValue = alpha
     }
 }
