@@ -5,6 +5,7 @@ struct MainWindow: View {
     @Environment(\.openWindow) private var openWindow
     @State private var pendingFolderURL: URL?
     @State private var showSubfolderPrompt = false
+    @State private var windowReady = false
 
     var body: some View {
         NavigationSplitView {
@@ -81,10 +82,25 @@ struct MainWindow: View {
                 Text("是否同时导入「\(url.lastPathComponent)」中的子文件夹？")
             }
         }
+        .background(MainWindowVisibilityController(isVisible: windowReady))
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                if appState.pendingViewerURL == nil {
+                    windowReady = true
+                }
+            }
+        }
         .onChange(of: appState.pendingViewerURL) { _, newURL in
             if let url = newURL {
                 appState.pendingViewerURL = nil
                 openWindow(id: "standalone-viewer", value: url)
+                if appState.currentFolder == nil {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        for window in NSApp.windows where window.alphaValue == 0 {
+                            window.close()
+                        }
+                    }
+                }
             }
         }
     }
@@ -181,5 +197,24 @@ struct LoadingOverlay: View {
             .background(.ultraThickMaterial, in: RoundedRectangle(cornerRadius: 16))
         }
         .allowsHitTesting(false)
+    }
+}
+
+struct MainWindowVisibilityController: NSViewRepresentable {
+    let isVisible: Bool
+
+    final class HiddenView: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            window?.alphaValue = 0
+        }
+    }
+
+    func makeNSView(context: Context) -> NSView {
+        HiddenView()
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        nsView.window?.alphaValue = isVisible ? 1 : 0
     }
 }

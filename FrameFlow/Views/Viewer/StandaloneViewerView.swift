@@ -2,6 +2,7 @@ import SwiftUI
 
 struct StandaloneViewerView: View {
     @Environment(AppState.self) private var appState
+    @Environment(\.dismiss) private var dismiss
     let initialURL: URL
     @State private var viewerState = ViewerState()
     @State private var displayImage: NSImage?
@@ -102,7 +103,11 @@ struct StandaloneViewerView: View {
                 viewerState.previousImage()
                 return .handled
             case .escape:
-                showEXIF = false
+                if showEXIF {
+                    showEXIF = false
+                } else {
+                    dismiss()
+                }
                 return .handled
             default:
                 return .ignored

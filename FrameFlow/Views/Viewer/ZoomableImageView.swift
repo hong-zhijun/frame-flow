@@ -146,9 +146,10 @@ final class ZoomableScrollContainer: NSView {
         let dy = point.y - lastDragPoint.y
         lastDragPoint = point
 
+        let mag = max(scrollView.magnification, 0.1)
         var origin = clipView.bounds.origin
-        origin.x -= dx
-        origin.y -= dy
+        origin.x -= dx / mag
+        origin.y -= dy / mag
         clipView.setBoundsOrigin(origin)
     }
 
